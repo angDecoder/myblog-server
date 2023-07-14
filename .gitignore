@@ -1,3 +1,4 @@
 node_modules
 .env
-/public/images/*.jpg
+/public/images/*
+!public/images/.gitkeep
