@@ -1,30 +1,28 @@
-const cookieSession = require('cookie-session');
-const cors = require('cors');
 const express = require('express');
-const passport = require('passport');
-
+const cors = require('cors');
 const app = express();
+const axios = require('axios');
+const pool = require('./dbconfig');
 
-app.use(cookieSession({
-    name: 'session',
-    keys: ['iamanghu'],
-    maxAge: 24 * 60 * 60 * 100
-}));
+app.use(cors());
+app.use(express.json());
 
-app.use(passport.initialize());
-app.use(passport.session());
 
-app.use(
-    cors({
-        origin: 'http://localhost:5173/',
-        methods: '*',
-        credentials: true
-    })
-);
+app.use('/auth', require('./routes/auth'));
 
-app.listen(5000, () => {
-    console.log('server is listening');
-})
 
-clientid = '';
-clientSecret = '';
+const connectToDb = async () => {
+    try {
+        const res = await pool.query(
+            `select 'connected to db' as status`
+        );
+
+        console.log(res.rows[0].status);
+        app.listen(5000, () => {
+            console.log('server listening port : 5000');
+        })
+    } catch (error) {
+        console.log('some error occured',error);
+    }
+};
+connectToDb();
