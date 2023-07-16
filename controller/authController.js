@@ -76,33 +76,36 @@ const loginGithub = async (req, res) => {
         res2 = res2.data;
 
         resObj = {
-            ...resObj,
             message: 'Github Login Successful',
+            access_token : resObj.access_token,
+            refresh_token : resObj.refresh_token,
             username: res2.login,
-            avatar: res2.avatar_url,
+            userimg: res2.avatar_url,
             email: res2.email,
+            token_type : 'GITHUB'
         }
 
+        // console.log(resObj);
 
-
-        await pool.query(
-            `INSERT INTO ACCOUNT(
+        await pool.query(`
+            INSERT INTO ACCOUNT(
                 EMAIL,
                 USERNAME,
                 REFRESH_TOKEN,
-                AVATAR,
-                ACCOUNT_TYPE
+                USERIMG,
+                TOKEN_TYPE
             ) VALUES(
                 '${resObj.email}',
                 '${resObj.username}',
                 '${resObj.refresh_token}',
                 '${resObj.avatar}',
-                'github'
+                'GITHUB'
             ) 
-            ON CONFLICT DO NOTHING;
-            `,
-            []
-        );
+            ON CONFLICT (EMAIL)
+            DO UPDATE
+            SET REFRESH_TOKEN = '${resObj.refresh_token}',
+            TOKEN_TYPE = 'GITHUB';
+        `);
 
         return res.status(200).json(resObj);
 
@@ -115,10 +118,9 @@ const loginGithub = async (req, res) => {
 }
 
 const autoLoginGithub = async (req, res) => {
-    // console.log('here');
     let { refresh_token } = req.body;
     if (!refresh_token)
-        return res.status(401).json({ message: "refresh token not found" });
+        return res.status(400).json({ message: "refresh token not found" });
 
     // console.log(refresh_token);
     const url = `https://github.com/login/oauth/access_token?client_id=${GITHUB_CLIENT_ID}&client_secret=${GITHUB_CLIENT_SECRET}&grant_type=refresh_token&refresh_token=` + refresh_token;
@@ -131,12 +133,20 @@ const autoLoginGithub = async (req, res) => {
         pr.data.split('&').forEach(elem => {
             let temp = elem.split('=');
             resobj = { ...resobj, [temp[0]]: temp[1] };
-        })
+        });
 
-        return res.json(resobj);
+        let res2 = await pool.query(`
+            UPDATE ACCOUNT 
+            SET REFRESH_TOKEN = '${resobj.refresh_token}',
+            TOKEN_TYPE = 'GITHUB'
+            WHERE REFRESH_TOKEN = '${refresh_token}'
+            RETURNING *;
+        `);
+
+        return res.json(res2.rows[0]);
     } catch (error) {
         // console.log(error);
-        return res.status(404).json(error);
+        return res.status(401).json(error);
     }
 }
 
@@ -184,7 +194,7 @@ const registerJwt = async (req, res) => {
                 '${username}',
                 '${hashedPwd}',
                 '${userimg}',
-                'jwt'
+                'JWT'
             );
         `);
 
@@ -231,10 +241,12 @@ const loginJwt = async (req, res) => {
             });
 
         const [refresh_token,access_token] = generateToken({ email });
-
+        
+        console.log(refresh_token,email);
         await pool.query(`
             UPDATE ACCOUNT 
-            SET REFRESH_TOKEN = '${refresh_token}'
+            SET REFRESH_TOKEN = '${refresh_token}',
+            TOKEN_TYPE = 'JWT'
             WHERE EMAIL = '${email}';
         `)
 
@@ -242,14 +254,15 @@ const loginJwt = async (req, res) => {
             email,
             username : resobj.rows[0].username,
             userimg : resobj.rows[0].userimg,
-            account_type : resobj.rows[0].account_type,
         }
+        console.log(resobj);
 
         return res.json({
             message : "login successfull",
             ...resobj,
             refresh_token,
-            access_token
+            access_token,
+            token_type : 'JWT'
         });
 
     } catch (error) {
@@ -266,7 +279,8 @@ const autoLoginJwt = async (req, res) => {
     try {
         let resobj = await pool.query(`
             SELECT * FROM ACCOUNT
-            WHERE REFRESH_TOKEN = '${refresh_token}';
+            WHERE REFRESH_TOKEN = '${refresh_token}' 
+            AND TOKEN_TYPE = 'JWT';
         `);
 
         jwt.verify(
@@ -293,7 +307,8 @@ const autoLoginJwt = async (req, res) => {
                     userimg : resobj.rows[0].userimg,
                     account_type : resobj.rows[0].account_type,
                     refresh_token,
-                    access_token
+                    access_token,
+                    token_type : 'JWT'
                 }
                 
                 return res.status(200).json({
