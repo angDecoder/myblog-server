@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const Authorize = require('../middleware/Authorize');
 const {
     loginGithub,
     autoLoginGithub,
@@ -19,6 +20,7 @@ router.post('/login/jwt', loginJwt );
 
 router.post('/autologin/jwt',autoLoginJwt );
 
-router.get('/logout/jwt',logoutJwt);
+router.use(Authorize);
+router.get('/logout',logoutJwt);
 
 module.exports = router;

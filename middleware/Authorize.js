@@ -7,12 +7,14 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 const authorizeGithubToken = async (token) => {
     // console.log('here');
-    const url = "https://api.github.com/user/issues";
+    const url = "https://api.github.com/user";
     const result = await axios.get(url, {
         headers : {
             "Authorization": `Bearer ${token}`
         }
     });
+
+    return result.data.email;
 }
 
 const authorizeJwtToken = (token) => {
@@ -38,12 +40,14 @@ const authorizeUser = async (req, res, next) => {
     token = token.split(' ')[1];
 
     try {
+        let email = '';
         if (token_type === 'GITHUB')
-            await authorizeGithubToken(token);
+            email = await authorizeGithubToken(token);
         else
-            authorizeJwtToken(token);
-        
-        // console.log('next called');
+            email = authorizeJwtToken(token);
+
+        console.log(email);
+        req.body = {...req.body,email};
         next();
     } catch (error) {
         return res.status(401).json({

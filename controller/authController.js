@@ -242,7 +242,7 @@ const loginJwt = async (req, res) => {
 
         const [refresh_token,access_token] = generateToken({ email });
         
-        console.log(refresh_token,email);
+        // console.log(refresh_token,email);
         await pool.query(`
             UPDATE ACCOUNT 
             SET REFRESH_TOKEN = '${refresh_token}',
@@ -255,7 +255,7 @@ const loginJwt = async (req, res) => {
             username : resobj.rows[0].username,
             userimg : resobj.rows[0].userimg,
         }
-        console.log(resobj);
+        // console.log(resobj);
 
         return res.json({
             message : "login successfull",

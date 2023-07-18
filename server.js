@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
-const axios = require('axios');
 const pool = require('./dbconfig');
 
 app.use(cors());
@@ -11,6 +10,8 @@ app.use(express.static('public'));
 
 app.get('/check',require('./middleware/Authorize'));
 app.use('/auth', require('./routes/auth'));
+app.use('/post',require('./routes/post'));
+app.use('/draft',require('./routes/draft'));
 
 
 const connectToDb = async () => {
@@ -27,4 +28,5 @@ const connectToDb = async () => {
         console.log('some error occured',error);
     }
 };
+
 connectToDb();
