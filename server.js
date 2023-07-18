@@ -8,7 +8,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(express.static('public'));
 
-app.get('/check',require('./middleware/Authorize'));
+app.get('/check',(req,res)=>res.json('ok'));
 app.use('/auth', require('./routes/auth'));
 app.use('/post',require('./routes/post'));
 app.use('/draft',require('./routes/draft'));

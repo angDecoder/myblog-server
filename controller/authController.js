@@ -188,7 +188,7 @@ const registerJwt = async (req, res) => {
                 USERNAME,
                 PASSWORD,
                 USERIMG,
-                ACCOUNT_TYPE
+                TOKEN_TYPE
             ) VALUES(
                 '${email}',
                 '${username}',
