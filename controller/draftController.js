@@ -2,6 +2,59 @@ const pool = require('../dbconfig');
 const { randomUUID } = require('crypto');
 
 
+const getDraftById = async(req,res)=>{
+    const { id } = req.body;
+
+    if( !id )
+        return res.status(400).json({
+            message : "id is required"
+        });
+
+    try {
+        const result = await pool.query(`
+            SELECT * FROM DRAFT
+            WHERE ID = '${id}';
+        `);
+
+        return res.json({
+            message : "draft retrieved successfully",
+            draft : result.rows[0],
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message : "some error occured",
+            error
+        })
+    }
+};
+
+const getDraftByEmail = async(req,res)=>{
+    const { email } = req.body;
+
+    if( !email )
+        return res.status(400).json({
+            message : "email is required",
+        });
+
+    try {
+        const result = await pool.query(`
+            SELECT * 
+            FROM DRAFT 
+            WHERE CREATED_BY = '${email}';
+        `);
+
+        return res.json({
+            message : "draft retrieved successfully",
+            drafts : result.rows,
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message : "draft not retrieved",
+            error
+        });
+    }
+}
+
 const createDraft = async(req,res)=>{
     const { title,email } = req.body;
     const id = randomUUID();
@@ -26,7 +79,7 @@ const createDraft = async(req,res)=>{
         `);
 
         return res.status(201).json({
-            message : 'new post created',
+            message : 'new draft created',
             id,
             title,
             created_by : email
@@ -106,10 +159,38 @@ const updateDraft = async(req,res)=>{
         });
     }
 
-}
+};
+
+const deleteDraft = async(req,res)=>{
+    const { id } = req.params;
+
+    if( !id )
+        return res.status(400).json({
+            message : "id is required",
+        });
+
+    try {
+        await pool.query(`
+            DELETE FROM DRAFT
+            WHERE ID = '${id}';
+        `);
+
+        return res.json({
+            message : "draft deleted successfully",
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message : "draft not deleted",
+            error
+        })
+    }
+};
 
 module.exports = {
+    getDraftById,
     createDraft,
     publishDraft,
-    updateDraft
+    updateDraft,
+    deleteDraft,
+    getDraftByEmail
 }
