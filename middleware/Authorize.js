@@ -46,7 +46,7 @@ const authorizeUser = async (req, res, next) => {
         else
             email = authorizeJwtToken(token);
 
-        console.log(email);
+        // console.log(email);
         req.body = {...req.body,email};
         next();
     } catch (error) {

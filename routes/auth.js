@@ -6,13 +6,19 @@ const {
     registerJwt,
     loginJwt,
     autoLoginJwt,
-    logoutJwt
+    logoutJwt,
+    refreshTokenGithub,
+    refreshTokenJwt
 } = require('../controller/authController');
 
 
 router.get('/login/github', loginGithub );
 
-router.get('/autologin/github',autoLoginGithub );
+router.post('/autologin/github',autoLoginGithub );
+
+router.post('/refresh/jwt',refreshTokenJwt);
+
+router.post('/refresh/github',refreshTokenGithub);
 
 router.post('/register/jwt',registerJwt );
 

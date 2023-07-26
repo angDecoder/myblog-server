@@ -5,30 +5,11 @@ const axios = require('axios');
 require('dotenv').config();
 const pool = require('../dbconfig');
 const bcrypt = require('bcrypt');
+const saveImg = require('../middleware/SaveImage');
 
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 const JWT_SECRET = process.env.JWT_SECRET;
-
-
-const saveImg = async (base64Data) => {
-    // console.log('base');
-
-    try {
-        const base64Image = base64Data.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-
-        const uniqueFileName = `${randomUUID()}.jpg`;
-        const filePath = `${__dirname}/../public/images/${uniqueFileName}`;
-
-        await fs.writeFile(filePath, base64Image, 'base64');
-
-        const staticPath = `/images/${uniqueFileName}`;
-        return staticPath;
-    } catch (error) {
-        return Promise.reject(error);
-    }
-
-}
 
 const generateToken = (payload)=>{
     let refresh_token = jwt.sign(
@@ -143,7 +124,10 @@ const autoLoginGithub = async (req, res) => {
             RETURNING *;
         `);
 
-        return res.json(res2.rows[0]);
+        return res.json({
+            ...res2.rows[0],
+            access_token : resobj.access_token
+        });
     } catch (error) {
         // console.log(error);
         return res.status(401).json(error);
@@ -178,7 +162,7 @@ const registerJwt = async (req, res) => {
                 message : "User already exists"
             });
 
-        const userimg = await saveImg(avatar); // save img to serve statically
+        const userimg = await saveImg(avatar,email); // save img to serve statically
 
         const hashedPwd = await bcrypt.hash(password, 10);
 
@@ -275,37 +259,37 @@ const loginJwt = async (req, res) => {
 
 const autoLoginJwt = async (req, res) => {
     let { refresh_token } = req.body;
-
+    
     try {
         let resobj = await pool.query(`
-            SELECT * FROM ACCOUNT
-            WHERE REFRESH_TOKEN = '${refresh_token}' 
-            AND TOKEN_TYPE = 'JWT';
+        SELECT * FROM ACCOUNT
+        WHERE REFRESH_TOKEN = '${refresh_token}' 
+        AND TOKEN_TYPE = 'JWT';
         `);
-
+        
         jwt.verify(
             refresh_token,
             JWT_SECRET,
             async( err,decoded )=>{
                 if( err )
-                    return res.status(400).json({
-                        message : 'jwt not valid',
-                        err,
-                    });
+                return res.status(400).json({
+                    message : 'jwt not valid',
+                    err,
+                });
                 
                 // console.log(decoded.email, resobj.rows[0]);
                 if( decoded.email!==resobj?.rows[0]?.email )
-                    return res.status(400).json({
-                        message : "decoded email doesn't match",
-                    });
-
+                return res.status(400).json({
+                    message : "decoded email doesn't match",
+                });
+                
                 let [_,access_token] = generateToken({email : decoded.email});
-
+                
                 resobj = {
                     email : resobj.rows[0].email,
                     username : resobj.rows[0].username,
                     userimg : resobj.rows[0].userimg,
-                    account_type : resobj.rows[0].account_type,
+                    token_type : resobj.rows[0].token_type,
                     refresh_token,
                     access_token,
                     token_type : 'JWT'
@@ -316,9 +300,9 @@ const autoLoginJwt = async (req, res) => {
                     ...resobj
                 })
             }
-        )
+            )
         
-    } catch (error) {
+        } catch (error) {
         res.status(500).json({
             message : 'autologin failed',
             error
@@ -328,14 +312,14 @@ const autoLoginJwt = async (req, res) => {
 
 const logoutJwt = async (req,res) =>{
     const { email } = req.body;
-
+    
     try {
         await pool.query(`
-            UPDATE ACCOUNT
-            SET REFRESH_TOKEN = '${randomUUID()}'
-            WHERE email = '${email}';
+        UPDATE ACCOUNT
+        SET REFRESH_TOKEN = '${randomUUID()}'
+        WHERE email = '${email}';
         `);
-
+        
         return res.json({
             message : 'logout successfull'
         });
@@ -347,6 +331,68 @@ const logoutJwt = async (req,res) =>{
     }
 }
 
+const refreshTokenJwt = async(req,res)=>{
+    const { refresh_token } = req.body;
+    if( !refresh_token )
+        return res.status(400).json({
+            message : "refresh token is required"
+        });
+    
+    try {
+        const { email } = jwt.verify(
+            refresh_token,
+            JWT_SECRET
+        );
+
+        const [_,access_token] = generateToken({ email });
+
+        return res.json({
+            message : "token refreshed",
+            access_token,
+            refresh_token
+        })
+
+    } catch (error) {
+        return res.status(401).json({
+            message : 'refresh token expired hello',
+            error
+        })
+    }
+}
+
+const refreshTokenGithub = async(req,res)=>{
+    let { refresh_token } = req.body;
+    if (!refresh_token)
+        return res.status(400).json({ message: "refresh token not found" });
+
+    const url = `https://github.com/login/oauth/access_token?client_id=${GITHUB_CLIENT_ID}&client_secret=${GITHUB_CLIENT_SECRET}&grant_type=refresh_token&refresh_token=` + refresh_token;
+
+
+    try {
+        const pr = await axios.post(url);
+        let resobj = {};
+        pr.data.split('&').forEach(elem => {
+            let temp = elem.split('=');
+            resobj = { ...resobj, [temp[0]]: temp[1] };
+        });
+
+        let res2 = await pool.query(`
+            UPDATE ACCOUNT 
+            SET REFRESH_TOKEN = '${resobj.refresh_token}',
+            TOKEN_TYPE = 'GITHUB'
+            WHERE REFRESH_TOKEN = '${refresh_token}';
+        `);
+
+        return res.json({
+            message : "token refreshed",
+            access_token : resobj.access_token,
+            refresh_token : resobj.refresh_token
+        });
+    } catch (error) {
+        return res.status(401).json(error);
+    }
+}
+
 
 module.exports = {
     loginGithub,
@@ -354,5 +400,7 @@ module.exports = {
     registerJwt,
     loginJwt,
     autoLoginJwt,
-    logoutJwt
+    logoutJwt,
+    refreshTokenGithub,
+    refreshTokenJwt
 }
