@@ -4,11 +4,15 @@ const Authorize = require('../middleware/Authorize');
 const postController = require('../controller/postController');
 
 
-router.get('/:id',postController.getPostById);
+router.get('/useid:id',postController.getPostById);
+
+router.get('/allpost',postController.getAllPost);
+
+router.get('/postdata/:id',postController.getPostData);
 
 router.use(Authorize);
 
-router.get('/',postController.getPostByEmail);
+router.get('/useemail',postController.getPostByEmail);
 
 router.post('/comment',postController.commentOnPost);
 
