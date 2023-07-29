@@ -2,7 +2,7 @@ const pool = require('../dbconfig');
 const { randomUUID } = require('crypto');
 
 const getPostById = async (req, res) => {
-    const { id } = req.params;
+    const { id,email } = req.query;
 
     if (!id)
         return res.status(400).json({
@@ -11,8 +11,17 @@ const getPostById = async (req, res) => {
 
     try {
         const res1 = await pool.query(`
-            SELECT * FROM POST
-            WHERE ID = '${id}';
+            SELECT P.*,
+            ( U.ACCOUNT_ID IS NOT NULL ) UPVOTED_BY_USER,
+            ( B.ACCOUNT_ID IS NOT NULL ) BOOKMARKED_BY_USER
+            FROM POST P
+            LEFT JOIN POST_UPVOTE U
+            ON U.POST_ID = P.ID
+            AND U.ACCOUNT_ID = '${email}'
+            LEFT JOIN POST_BOOKMARK B
+            ON B.POST_ID = P.ID 
+            AND B.ACCOUNT_ID = '${email}'
+            WHERE P.ID = '${id}';
         `);
 
         const res2 = await pool.query(`
@@ -33,6 +42,32 @@ const getPostById = async (req, res) => {
     }
 };
 
+const getPostComment = async(req,res)=>{
+    const { id } = req.params;
+
+    if( !id )
+        return res.status(400).json({
+            message : "id is required",
+        });
+
+    try {
+        const res1 = await pool.query(`
+            SELECT * FROM POST_COMMENT
+            WHERE POST_ID = '${id}';
+        `);
+
+        return res.json({
+            message : "comments retrieved successfully",
+            comments : res1.rows
+        })
+    } catch (error) {
+        return res.status(500).json({
+            message : "some error occured",
+            error,
+        });
+    }
+}
+
 const getPostByEmail = async (req, res) => {
     const { email } = req.body;
 
@@ -43,9 +78,18 @@ const getPostByEmail = async (req, res) => {
 
     try {
         const result = await pool.query(`
-            SELECT * 
-            FROM POST 
-            WHERE CREATED_BY = '${email}';
+            SELECT 
+            ( U.ACCOUNT_ID IS NOT NULL ) UPVOTED_BY_USER,
+            ( B.ACCOUNT_ID IS NOT NULL ) BOOKMARKED_BY_USER,
+            p.*
+            FROM POST P
+            LEFT JOIN POST_UPVOTE U
+            ON U.POST_ID = P.ID
+            AND U.ACCOUNT_ID = '${email}'
+            LEFT JOIN POST_BOOKMARK B
+            ON B.POST_ID = P.ID 
+            AND B.ACCOUNT_ID = '${email}'
+            WHERE P.CREATED_BY = '${email}';
         `);
 
         return res.json({
@@ -226,20 +270,20 @@ const bookmarkPost = async (req, res) => {
     }
 }
 
-const getAllPost = async(req,res)=>{
+const getAllPost = async (req, res) => {
 
-    let { email,offset } = req.query;
+    let { email, offset } = req.query;
 
-    if( !email )
+    if (!email)
         email = '';
 
-    if( !offset )
+    if (!offset)
         return res.status(400).json({
-            message : "offset is required",
+            message: "offset is required",
         });
-    
+
     try {
-        const res1 = await pool.query(`
+        const p1 = pool.query(`
             SELECT 
             ( U.ACCOUNT_ID IS NOT NULL ) AS UPVOTED_BY_USER,
             ( B.ACCOUNT_ID IS NOT NULL ) AS BOOKMARKED_BY_USER,
@@ -253,43 +297,27 @@ const getAllPost = async(req,res)=>{
             AND B.ACCOUNT_ID = '${email}'
             OFFSET ${offset}
             LIMIT 10;
-        `);
-
-
-        return res.json({
-            message : 'posts retrieved successfully',
-            posts : res1.rows
-        });
-    } catch (error) {
-        return res.json({
-            message : 'some error occured',
-            error,
+        `).then((result)=>{
+            return { posts : result.rows };
         })
-    }
-}
 
-const getPostData = async (req, res) => {
-    const { id } = req.params;
+        const p2 = pool.query(`
+            SELECT COUNT(ID) AS COUNT FROM POST;
+        `).then(result=>{
+            return { totalPosts : result.rows[0].count }
+        })
 
-    if (!id)
-        return res.status(400).json({
-            message: "id is required"
-        });
-
-    try {
-        const res1 = await pool.query(`
-                SELECT * FROM POST_COMMENT
-                WHERE POST_ID = '${id}';
-            `)
+        const res1 = await Promise.all([p1, p2]);
 
         return res.json({
-            message: "post data retrieved successfully",
-            comment: res1.rows[0],
+            message: 'posts retrieved successfully',
+            ...res1[0],
+            ...res1[1]
         });
     } catch (error) {
-        return res.status(500).json({
-            message: "some error occured",
-            error
+        return res.json({
+            message: 'some error occured',
+            error,
         })
     }
 }
@@ -302,6 +330,6 @@ module.exports = {
     commentOnPost,
     upvotePost,
     bookmarkPost,
-    getPostData,
+    getPostComment,
     getAllPost
 }
