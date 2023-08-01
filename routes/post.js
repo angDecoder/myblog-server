@@ -24,4 +24,6 @@ router.put("/upvote/:id",postController.upvotePost);
 
 router.put('/bookmark/:id',postController.bookmarkPost);
 
+router.get('/bookmark',postController.getBookmarkedPost);
+
 module.exports = router;

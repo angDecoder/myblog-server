@@ -294,9 +294,7 @@ const getAllPost = async (req, res) => {
             AND U.ACCOUNT_ID = '${email}'
             LEFT JOIN POST_BOOKMARK B 
             ON P.ID = B.POST_ID 
-            AND B.ACCOUNT_ID = '${email}'
-            OFFSET ${offset}
-            LIMIT 10;
+            AND B.ACCOUNT_ID = '${email}';
         `).then((result)=>{
             return { posts : result.rows };
         })
@@ -322,6 +320,38 @@ const getAllPost = async (req, res) => {
     }
 }
 
+const getBookmarkedPost = async(req,res)=>{
+    const { email } = req.body;
+
+    if( !email )
+        return res.status(400).json({
+            message : "email is required",
+        });
+
+    try {
+        const res1 = await pool.query(`
+            SELECT 
+            ( U.ACCOUNT_ID IS NOT NULL ) AS UPVOTED_BY_USER,
+            ( B.ACCOUNT_ID IS NOT NULL ) AS BOOKMARKED_BY_USER,
+            p.*
+            FROM POST P
+            LEFT JOIN POST_UPVOTE U
+            ON P.ID = U.POST_ID 
+            AND U.ACCOUNT_ID = '${email}'
+            LEFT JOIN POST_BOOKMARK B 
+            ON P.ID = B.POST_ID 
+            WHERE B.ACCOUNT_ID = '${email}';
+        `);
+
+        return res.json({
+            message : "bookmarks retrieved",
+            posts : res1.rows,
+        })
+    } catch (error) {
+        
+    }
+}
+
 module.exports = {
     getPostById,
     getPostByEmail,
@@ -331,5 +361,6 @@ module.exports = {
     upvotePost,
     bookmarkPost,
     getPostComment,
-    getAllPost
+    getAllPost,
+    getBookmarkedPost
 }
