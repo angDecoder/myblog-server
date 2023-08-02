@@ -1,6 +1,6 @@
 const pool = require('../dbconfig');
 const { randomUUID } = require('crypto');
-const saveImg = require('../middleware/SaveImage');
+// const saveImg = require('../middleware/SaveImage');
 
 const getDraftById = async (req, res) => {
     const { id } = req.body;
@@ -59,14 +59,21 @@ const createDraft = async (req, res) => {
     const { draft, email } = req.body;
     const id = randomUUID();
 
+    // console.log(draf);
+
     if (!draft?.title || !email)
         return res.status(400).json({
             message: 'title and email are required',
         });
 
     draft.id = id;
-    if (draft.cover_image)
-        draft.cover_image = await saveImg(draft.cover_image, id);
+    // if (draft.cover_image)
+    //     draft.cover_image = await saveImg(draft.cover_image, id);
+
+    if( draft.content )
+        draft.content = draft.content.replaceAll(`'`,`"`);
+
+    console.log(draft.content);
 
     if (draft.tags)
         draft.tags = "{" + draft.tags.map(tag => {
@@ -77,6 +84,9 @@ const createDraft = async (req, res) => {
     let keys = Object.keys(draft);
     let colString = keys.join();
     let valString = keys.map(key => `'${draft[key]}'`).join();
+
+    // console.log(colString);
+    // console.log(valString);
 
 
     try {
@@ -156,8 +166,8 @@ const updateDraft = async (req, res) => {
             message: "You don't have access to this draft"
         });
 
-    if (draft?.cover_image)
-        draft.cover_image = await saveImg(draft.cover_image, id);
+    // if (draft?.cover_image)
+    //     draft.cover_image = await saveImg(draft.cover_image, id);
 
     if (draft.tags)
         draft.tags = "{" + draft.tags.map(tag => {

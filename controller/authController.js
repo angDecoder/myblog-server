@@ -5,7 +5,7 @@ const axios = require('axios');
 require('dotenv').config();
 const pool = require('../dbconfig');
 const bcrypt = require('bcrypt');
-const saveImg = require('../middleware/SaveImage');
+// const saveImg = require('../middleware/SaveImagez');
 
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID;
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
@@ -162,8 +162,7 @@ const registerJwt = async (req, res) => {
                 message : "User already exists"
             });
 
-        const userimg = await saveImg(avatar,email); // save img to serve statically
-
+        // const userimg = await saveImg(avatar,email); // save img to serve statically
         const hashedPwd = await bcrypt.hash(password, 10);
 
         await pool.query(`
@@ -177,7 +176,7 @@ const registerJwt = async (req, res) => {
                 '${email}',
                 '${username}',
                 '${hashedPwd}',
-                '${userimg}',
+                '${avatar}',
                 'JWT'
             );
         `);

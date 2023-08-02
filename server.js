@@ -6,7 +6,7 @@ const pool = require('./dbconfig');
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-app.use(express.static('public'));
+// app.use(express.static('public'));
 
 app.get('/check',(req,res)=>res.json('ok'));
 app.use('/auth', require('./routes/auth'));
