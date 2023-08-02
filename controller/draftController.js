@@ -73,7 +73,7 @@ const createDraft = async (req, res) => {
     if( draft.content )
         draft.content = draft.content.replaceAll(`'`,`"`);
 
-    console.log(draft.content);
+    // console.log(draft.content);
 
     if (draft.tags)
         draft.tags = "{" + draft.tags.map(tag => {
